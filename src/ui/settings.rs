@@ -31,130 +31,142 @@ pub fn show(app: &mut PhotoVaultApp, ui: &mut egui::Ui, trash_size: Option<u64>,
     let mut changed = false;
     let mut language_changed = false;
 
-    setting(ui, t!("settings.language"), |ui| {
-        let arabic = crate::ui::bidi::vis("العربية");
-        language_changed |= segmented(
-            ui,
-            "language",
-            &mut app.config.language,
-            &[(Language::En, "English"), (Language::Ar, &arabic)],
-            accent,
-        );
-    });
-    setting(ui, t!("settings.theme"), |ui| {
-        changed |= segmented(
-            ui,
-            "theme",
-            &mut app.config.theme,
-            &[
-                (ThemeMode::Light, t!("settings.light")),
-                (ThemeMode::Dark, t!("settings.dark")),
-                (ThemeMode::System, t!("settings.system")),
-            ],
-            accent,
-        );
-    });
-    setting(ui, t!("settings.accent"), |ui| {
-        for (i, (name, color)) in ACCENTS.iter().enumerate() {
-            let (rect, resp) = ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
-            let hover = ui.ctx().animate_bool_with_time(
-                egui::Id::unique(("accent_hover", i)),
-                resp.hovered(),
-                0.12,
-            );
-            ui.painter()
-                .circle_filled(rect.center(), 10.0 + hover * 1.5, *color);
-            if app.config.accent == i {
-                ui.painter().circle_stroke(
-                    rect.center(),
-                    12.5,
-                    egui::Stroke::new(2.0, ui.visuals().text_color()),
+    // Keep the dialog usable on small windows and at large UI scales.
+    let max_height = (ui.ctx().content_rect().height() - 190.0).max(260.0);
+    egui::ScrollArea::vertical()
+        .max_height(max_height)
+        .auto_shrink([false, true])
+        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+        .show(ui, |ui| {
+            updates(app, ui, accent);
+
+            setting(ui, t!("settings.language"), |ui| {
+                let arabic = crate::ui::bidi::vis("العربية");
+                language_changed |= segmented(
+                    ui,
+                    "language",
+                    &mut app.config.language,
+                    &[(Language::En, "English"), (Language::Ar, &arabic)],
+                    accent,
                 );
-            }
-            if resp.on_hover_text(*name).clicked() {
-                app.config.accent = i;
-                changed = true;
-            }
-        }
-    });
-    setting(ui, t!("settings.reminder"), |ui| {
-        changed |= segmented(
-            ui,
-            "reminder",
-            &mut app.config.backup_reminder_days,
-            &[
-                (0, t!("settings.off")),
-                (7, t!("settings.7")),
-                (30, t!("settings.30")),
-                (90, t!("settings.90")),
-            ],
-            accent,
-        );
-    });
-    setting(ui, t!("settings.thumb_size"), |ui| {
-        changed |= ui
-            .add(egui::Slider::new(&mut app.config.thumb_size, 90.0..=320.0).suffix(" px"))
-            .changed();
-    });
-    setting(ui, t!("settings.ui_scale"), |ui| {
-        let r = ui.add(egui::Slider::new(&mut app.config.ui_scale, 0.8..=1.6).step_by(0.05));
-        if r.drag_stopped() || (r.changed() && !r.dragged()) {
-            ui.ctx().set_zoom_factor(app.config.ui_scale);
-            app.config_dirty = true;
-        }
-    });
-    setting(ui, t!("settings.slideshow"), |ui| {
-        if ui
-            .add(egui::Slider::new(&mut app.config.slideshow_secs, 1.0..=20.0).suffix(" s"))
-            .changed()
-        {
-            app.config_dirty = true;
-        }
-    });
-    setting(ui, t!("settings.animations"), |ui| {
-        if crate::ui::toggle(ui, &mut app.config.animations, accent).changed() {
-            app.config_dirty = true;
-        }
-    });
-    setting(ui, t!("settings.confirm_delete"), |ui| {
-        if crate::ui::toggle(ui, &mut app.config.confirm_before_delete, accent).changed() {
-            app.config_dirty = true;
-        }
-    });
-    setting(ui, t!("settings.fonts"), |ui| {
-        ui.label(
-            RichText::new(t!("settings.fonts_value"))
-                .small()
-                .color(theme::muted(ui)),
-        );
-    });
-    setting(ui, t!("settings.trash"), |ui| {
-        match trash_size {
-            Some(n) => ui.label(human_bytes(n)),
-            None => ui.spinner(),
-        };
-        if ui
-            .add_enabled(
-                trash_size.is_some_and(|n| n > 0),
-                egui::Button::new(t!("settings.empty_trash")),
-            )
-            .clicked()
-            && let Some(a) = app.archive.as_ref()
-        {
-            match a.empty_trash() {
-                Ok(()) => app.actions.push(Action::Toast(
-                    t!("settings.trash_emptied").to_owned(),
-                    crate::ui::toasts::ToastKind::Success,
-                )),
-                Err(e) => app.actions.push(Action::Toast(
-                    photovault::bidi::visual_string(&e.to_string()),
-                    crate::ui::toasts::ToastKind::Error,
-                )),
-            }
-            app.toasts.retain(|t| t.undo.is_none());
-            *keep = false;
-        }
-    });
+            });
+            setting(ui, t!("settings.theme"), |ui| {
+                changed |= segmented(
+                    ui,
+                    "theme",
+                    &mut app.config.theme,
+                    &[
+                        (ThemeMode::Light, t!("settings.light")),
+                        (ThemeMode::Dark, t!("settings.dark")),
+                        (ThemeMode::System, t!("settings.system")),
+                    ],
+                    accent,
+                );
+            });
+            setting(ui, t!("settings.accent"), |ui| {
+                for (i, (name, color)) in ACCENTS.iter().enumerate() {
+                    let (rect, resp) =
+                        ui.allocate_exact_size(egui::vec2(26.0, 26.0), egui::Sense::click());
+                    let hover = ui.ctx().animate_bool_with_time(
+                        egui::Id::unique(("accent_hover", i)),
+                        resp.hovered(),
+                        0.12,
+                    );
+                    ui.painter()
+                        .circle_filled(rect.center(), 10.0 + hover * 1.5, *color);
+                    if app.config.accent == i {
+                        ui.painter().circle_stroke(
+                            rect.center(),
+                            12.5,
+                            egui::Stroke::new(2.0, ui.visuals().text_color()),
+                        );
+                    }
+                    if resp.on_hover_text(*name).clicked() {
+                        app.config.accent = i;
+                        changed = true;
+                    }
+                }
+            });
+            setting(ui, t!("settings.reminder"), |ui| {
+                changed |= segmented(
+                    ui,
+                    "reminder",
+                    &mut app.config.backup_reminder_days,
+                    &[
+                        (0, t!("settings.off")),
+                        (7, t!("settings.7")),
+                        (30, t!("settings.30")),
+                        (90, t!("settings.90")),
+                    ],
+                    accent,
+                );
+            });
+            setting(ui, t!("settings.thumb_size"), |ui| {
+                changed |= ui
+                    .add(egui::Slider::new(&mut app.config.thumb_size, 90.0..=320.0).suffix(" px"))
+                    .changed();
+            });
+            setting(ui, t!("settings.ui_scale"), |ui| {
+                let r =
+                    ui.add(egui::Slider::new(&mut app.config.ui_scale, 0.8..=1.6).step_by(0.05));
+                if r.drag_stopped() || (r.changed() && !r.dragged()) {
+                    ui.ctx().set_zoom_factor(app.config.ui_scale);
+                    app.config_dirty = true;
+                }
+            });
+            setting(ui, t!("settings.slideshow"), |ui| {
+                if ui
+                    .add(egui::Slider::new(&mut app.config.slideshow_secs, 1.0..=20.0).suffix(" s"))
+                    .changed()
+                {
+                    app.config_dirty = true;
+                }
+            });
+            setting(ui, t!("settings.animations"), |ui| {
+                if crate::ui::toggle(ui, &mut app.config.animations, accent).changed() {
+                    app.config_dirty = true;
+                }
+            });
+            setting(ui, t!("settings.confirm_delete"), |ui| {
+                if crate::ui::toggle(ui, &mut app.config.confirm_before_delete, accent).changed() {
+                    app.config_dirty = true;
+                }
+            });
+            setting(ui, t!("settings.fonts"), |ui| {
+                ui.label(
+                    RichText::new(t!("settings.fonts_value"))
+                        .small()
+                        .color(theme::muted(ui)),
+                );
+            });
+            setting(ui, t!("settings.trash"), |ui| {
+                match trash_size {
+                    Some(n) => ui.label(human_bytes(n)),
+                    None => ui.spinner(),
+                };
+                if ui
+                    .add_enabled(
+                        trash_size.is_some_and(|n| n > 0),
+                        egui::Button::new(t!("settings.empty_trash")),
+                    )
+                    .clicked()
+                    && let Some(a) = app.archive.as_ref()
+                {
+                    match a.empty_trash() {
+                        Ok(()) => app.actions.push(Action::Toast(
+                            t!("settings.trash_emptied").to_owned(),
+                            crate::ui::toasts::ToastKind::Success,
+                        )),
+                        Err(e) => app.actions.push(Action::Toast(
+                            photovault::bidi::visual_string(&e.to_string()),
+                            crate::ui::toasts::ToastKind::Error,
+                        )),
+                    }
+                    app.toasts.retain(|t| t.undo.is_none());
+                    *keep = false;
+                }
+            });
+        });
 
     if language_changed {
         photovault::i18n::set_language(app.config.language);
@@ -190,4 +202,130 @@ pub fn show(app: &mut PhotoVaultApp, ui: &mut egui::Ui, trash_size: Option<u64>,
             *keep = false;
         }
     });
+}
+
+/// Updates section: current version, automatic checks, manual check and the
+/// download button for the current platform.
+fn updates(app: &mut PhotoVaultApp, ui: &mut egui::Ui, accent: egui::Color32) {
+    ui.label(RichText::new(t!("update.title")).strong());
+    ui.add_space(6.0);
+
+    setting(ui, t!("update.current"), |ui| {
+        ui.label(RichText::new(photovault::APP_VERSION).monospace());
+    });
+    setting(ui, t!("update.auto"), |ui| {
+        if crate::ui::toggle(ui, &mut app.config.check_updates, accent).changed() {
+            app.config_dirty = true;
+            if app.config.check_updates {
+                app.actions.push(Action::CheckForUpdates);
+            }
+        }
+    });
+    setting(ui, t!("update.status"), |ui| {
+        let busy = app.update.checking || app.update.installing;
+        if ui
+            .add_enabled(!busy, egui::Button::new(t!("update.check")))
+            .clicked()
+        {
+            app.actions.push(Action::CheckForUpdates);
+        }
+        if app.update.installing {
+            ui.spinner();
+            ui.label(
+                RichText::new(t!("update.installing"))
+                    .small()
+                    .color(theme::muted(ui)),
+            );
+        } else if app.update.checking {
+            ui.spinner();
+            ui.label(
+                RichText::new(t!("update.checking"))
+                    .small()
+                    .color(theme::muted(ui)),
+            );
+        } else if let Some(error) = &app.update.error {
+            ui.label(
+                RichText::new(t!("update.failed"))
+                    .small()
+                    .color(theme::DANGER),
+            )
+            .on_hover_text(photovault::i18n::display(error));
+        } else if app.update.available.is_some() {
+            ui.label(
+                RichText::new(t!("update.available_short"))
+                    .small()
+                    .color(theme::SUCCESS),
+            );
+        } else if app.update.checked_at.is_some() {
+            ui.label(
+                RichText::new(t!("update.up_to_date"))
+                    .small()
+                    .color(theme::muted(ui)),
+            );
+        }
+    });
+
+    let release = app.update.available.clone();
+    if let Some(release) = release {
+        ui.add_space(2.0);
+        ui.label(RichText::new(t!("update.available", version = release.version)).strong());
+        let can_install = photovault::update::can_self_install();
+        let asset = photovault::update::asset_for_current_platform(&release).cloned();
+        row(ui, |ui| {
+            if !app.update.installing {
+                let downloaded = app.update.downloaded.clone();
+                if can_install && let Some(path) = downloaded {
+                    // The installer is already on disk (for example after a
+                    // failed attempt); retry without downloading it again.
+                    if theme::primary_button(ui, accent, t!("update.install")).clicked() {
+                        app.actions.push(Action::InstallUpdate(path));
+                    }
+                } else if let Some(asset) = asset {
+                    let label = if can_install {
+                        t!("update.install")
+                    } else {
+                        t!("update.download")
+                    };
+                    if theme::primary_button(ui, accent, label).clicked() {
+                        app.actions.push(Action::DownloadUpdate {
+                            asset,
+                            install: can_install,
+                        });
+                    }
+                }
+            }
+            if ui.button(t!("update.release_page")).clicked() {
+                app.actions.push(Action::OpenUrl(release.url.clone()));
+            }
+            if let Some(path) = app.update.downloaded.clone() {
+                ui.label(
+                    RichText::new(t!("update.downloaded"))
+                        .small()
+                        .color(theme::SUCCESS),
+                );
+                if ui.button(t!("toast.show")).clicked() {
+                    app.actions.push(Action::Reveal(path));
+                }
+            }
+        });
+        if can_install && !app.update.installing {
+            ui.label(
+                RichText::new(t!("update.install_note"))
+                    .small()
+                    .color(theme::muted(ui)),
+            );
+        }
+        if photovault::update::managed_by_package_manager()
+            && photovault::update::asset_for_current_platform(&release).is_none()
+        {
+            ui.label(
+                RichText::new(t!("update.managed"))
+                    .small()
+                    .color(theme::muted(ui)),
+            );
+        }
+    }
+    ui.add_space(8.0);
+    ui.separator();
+    ui.add_space(8.0);
 }

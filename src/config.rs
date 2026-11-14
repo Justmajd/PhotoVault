@@ -51,6 +51,10 @@ pub struct AppConfig {
     pub ui_scale: f32,
     /// Smooth transitions and entrance animations.
     pub animations: bool,
+    /// Check for updates automatically at startup.
+    pub check_updates: bool,
+    /// Unix timestamp of the last update check (manual or automatic).
+    pub last_update_check: Option<i64>,
     /// The first-run introduction was shown.
     pub intro_seen: bool,
 }
@@ -72,6 +76,8 @@ impl Default for AppConfig {
             last_backup_dir: None,
             ui_scale: 1.0,
             animations: true,
+            check_updates: true,
+            last_update_check: None,
             intro_seen: false,
         }
     }

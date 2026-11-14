@@ -2,13 +2,13 @@
 # Packages the release binary built by `cargo build --release` in the repo
 # root. Built in CI with: makepkg -f --nodeps (see .github/workflows/release.yml)
 pkgname=photovault
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="Archive photos into plain, portable folders with notes and verified backups"
 arch=('x86_64')
 url="https://github.com/Justmajd/PhotoVault"
 license=('MIT')
-depends=('gtk3' 'libxkbcommon' 'hicolor-icon-theme')
+depends=('gtk3' 'libxkbcommon' 'hicolor-icon-theme' 'openssl')
 options=('!strip' '!debug')
 
 package() {

@@ -174,6 +174,27 @@ pub struct EditState {
     pub focus_title: bool,
 }
 
+/// Update-checker state.
+#[derive(Default)]
+pub struct UpdateState {
+    /// A check is running in the background.
+    pub checking: bool,
+    /// When the last check was started (drives the 24-hour interval).
+    pub checked_at: Option<Instant>,
+    /// A release newer than this build, if one was found.
+    pub available: Option<photovault::update::Release>,
+    /// Why the last check failed, if it did.
+    pub error: Option<String>,
+    /// Installer downloaded during this session.
+    pub downloaded: Option<PathBuf>,
+    /// Install the update as soon as the download finishes.
+    pub install_after_download: bool,
+    /// The installer is being applied in the background.
+    pub installing: bool,
+    /// The availability toast was already shown for `available`.
+    pub notified: bool,
+}
+
 /// Deferred actions emitted while drawing.
 pub enum Action {
     Select(Uuid),
@@ -232,6 +253,13 @@ pub enum Action {
     Slideshow(Uuid),
     AdoptFolder(PathBuf),
     ArchiveSettings,
+    CheckForUpdates,
+    DownloadUpdate {
+        asset: photovault::update::ReleaseAsset,
+        /// Install and restart after downloading instead of only saving it.
+        install: bool,
+    },
+    InstallUpdate(PathBuf),
     Toast(String, ToastKind),
 }
 
@@ -255,6 +283,7 @@ pub struct PhotoVaultApp {
     pub toasts: Vec<Toast>,
     next_toast: u64,
     pub actions: Vec<Action>,
+    pub update: UpdateState,
     pub search_query: String,
     pub search_filters: SearchFilters,
     pub search_from: jiff::civil::Date,
@@ -356,6 +385,7 @@ impl PhotoVaultApp {
             toasts: Vec::new(),
             next_toast: 1,
             actions: Vec::new(),
+            update: UpdateState::default(),
             search_query: String::new(),
             search_filters: SearchFilters::default(),
             search_from: to_jiff(today() - chrono::Duration::days(365)),
@@ -534,6 +564,84 @@ impl PhotoVaultApp {
                     notice: Some(t!("toast.archive_adopted").to_owned()),
                 }
             });
+    }
+
+    // ------------------------------------------------------------------
+    // Updates
+
+    /// Starts a background check for a newer GitHub release.
+    pub fn check_for_updates(&mut self, ctx: &egui::Context) {
+        if self.update.checking {
+            return;
+        }
+        self.update.checking = true;
+        self.update.checked_at = Some(Instant::now());
+        self.update.error = None;
+        self.config.last_update_check = Some(chrono::Utc::now().timestamp());
+        self.mark_config_dirty();
+        self.jobs
+            .spawn(ctx, t!("job.update_check"), false, false, |_, _| {
+                JobOutput::UpdateChecked(
+                    photovault::update::fetch_latest().map_err(|e| e.to_string()),
+                )
+            });
+    }
+
+    /// Checks automatically at most once every 24 hours, if enabled.
+    fn maybe_check_updates(&mut self, ctx: &egui::Context) {
+        const DAY: i64 = 24 * 60 * 60;
+        if !self.config.check_updates || self.dev_shot.is_some() || self.update.checking {
+            return;
+        }
+        let now = chrono::Utc::now().timestamp();
+        if self
+            .config
+            .last_update_check
+            .is_none_or(|last| now.saturating_sub(last) >= DAY)
+        {
+            self.check_for_updates(ctx);
+        }
+    }
+
+    /// Downloads the installer matching this platform.
+    fn download_update(
+        &mut self,
+        ctx: &egui::Context,
+        asset: photovault::update::ReleaseAsset,
+        install: bool,
+    ) {
+        self.update.install_after_download = install;
+        self.update.downloaded = None;
+        let dir = photovault::update::update_dir();
+        self.jobs
+            .spawn(ctx, t!("job.update_download"), true, true, move |ctl, _| {
+                JobOutput::UpdateDownloaded(
+                    photovault::update::download(&asset, &dir, ctl).map_err(|e| e.to_string()),
+                )
+            });
+    }
+
+    /// Applies a downloaded installer in the background.
+    fn install_update(&mut self, ctx: &egui::Context, path: PathBuf) {
+        self.update.installing = true;
+        self.jobs
+            .spawn(ctx, t!("job.update_install"), true, false, move |_, _| {
+                JobOutput::UpdateInstalled(
+                    photovault::update::install(&path).map_err(|e| e.to_string()),
+                )
+            });
+    }
+
+    /// Toast that offers to open the update section in Settings.
+    fn toast_update(&mut self, version: &str) {
+        let id = self.toast(
+            t!("update.available_toast", version = version),
+            ToastKind::Info,
+        );
+        if let Some(toast) = self.toasts.iter_mut().find(|t| t.id == id) {
+            toast.open_settings = true;
+            toast.secs = 15.0;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -1132,6 +1240,81 @@ impl PhotoVaultApp {
                     Err(e) if e == "cancelled" => {}
                     Err(e) => self.error(t!("error.export"), e),
                 },
+                JobOutput::UpdateChecked(result) => {
+                    self.update.checking = false;
+                    match result {
+                        Ok(release) => {
+                            self.update.error = None;
+                            if photovault::update::is_newer(
+                                photovault::APP_VERSION,
+                                &release.version,
+                            ) {
+                                let is_new = self
+                                    .update
+                                    .available
+                                    .as_ref()
+                                    .is_none_or(|r| r.version != release.version);
+                                if is_new {
+                                    self.update.notified = false;
+                                    self.update.downloaded = None;
+                                }
+                                let version = release.version.clone();
+                                self.update.available = Some(release);
+                                if is_new && !self.update.notified {
+                                    self.update.notified = true;
+                                    self.toast_update(&version);
+                                }
+                            } else {
+                                self.update.available = None;
+                            }
+                        }
+                        Err(e) => {
+                            log::warn!("update check failed: {e}");
+                            self.update.error = Some(e);
+                        }
+                    }
+                }
+                JobOutput::UpdateDownloaded(result) => match result {
+                    Ok(path) => {
+                        self.update.downloaded = Some(path.clone());
+                        if self.update.install_after_download {
+                            self.update.install_after_download = false;
+                            self.install_update(ctx, path);
+                        } else {
+                            let id = self.toast(t!("update.downloaded"), ToastKind::Success);
+                            if let Some(toast) = self.toasts.iter_mut().find(|t| t.id == id) {
+                                toast.reveal = Some(path);
+                                toast.secs = 15.0;
+                            }
+                        }
+                    }
+                    Err(e) if e == "cancelled" => {
+                        self.update.install_after_download = false;
+                        self.toast(t!("update.cancelled"), ToastKind::Info);
+                    }
+                    Err(e) => {
+                        self.update.install_after_download = false;
+                        self.error(t!("update.download_failed"), e);
+                    }
+                },
+                JobOutput::UpdateInstalled(result) => {
+                    self.update.installing = false;
+                    match result {
+                        Ok(outcome) => {
+                            // Persist settings and open collections before the
+                            // window closes; the new process starts fresh.
+                            self.flush_saves();
+                            if let Err(e) = self.config.save() {
+                                log::warn!("could not save config: {e}");
+                            }
+                            match photovault::update::restart(&outcome) {
+                                Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                                Err(e) => self.error(t!("update.install_failed"), e.to_string()),
+                            }
+                        }
+                        Err(e) => self.error(t!("update.install_failed"), e),
+                    }
+                }
                 JobOutput::TrashSize(n) => {
                     if let Some(Dialog::Settings { trash_size }) = &mut self.dialog {
                         *trash_size = Some(n);
@@ -1513,6 +1696,9 @@ impl PhotoVaultApp {
                     });
                 }
             }
+            Action::CheckForUpdates => self.check_for_updates(ctx),
+            Action::DownloadUpdate { asset, install } => self.download_update(ctx, asset, install),
+            Action::InstallUpdate(path) => self.install_update(ctx, path),
             Action::Toast(text, kind) => {
                 self.toast(text, kind);
             }
@@ -1737,6 +1923,7 @@ impl eframe::App for PhotoVaultApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.handle_jobs(&ctx);
+        self.maybe_check_updates(&ctx);
         self.thumbs.begin_frame(&ctx);
         self.handle_dropped_files(&ctx);
         self.handle_shortcuts(&ctx);

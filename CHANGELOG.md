@@ -3,6 +3,19 @@
 All notable changes to PhotoVault are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] — 2026-11-14
+
+### Updates
+- In-app update checker against GitHub Releases: automatic check at startup
+  (can be disabled in Settings), a manual "Check now", version status, and
+  one-click installation of the new version.
+- macOS replaces the `.app` bundle from the downloaded `.dmg`, Windows runs
+  the installer and reopens the app, and Linux replaces the running
+  `.AppImage` in place; PhotoVault restarts itself after installing.
+- Update controls live in Settings → Updates, and a toast with an **Update**
+  button appears when a new version is found. Linux copies managed by
+  apt/dnf/pacman are directed to the release page instead.
+
 ## [0.1.1] — 2026-11-14
 
 ### Packaging

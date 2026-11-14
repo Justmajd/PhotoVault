@@ -47,6 +47,9 @@ pub enum JobOutput {
     Integrity(IntegrityReport),
     Adopted(Result<CollectionEntry, String>),
     Exported(Result<PathBuf, String>),
+    UpdateChecked(Result<photovault::update::Release, String>),
+    UpdateDownloaded(Result<PathBuf, String>),
+    UpdateInstalled(Result<photovault::update::InstallOutcome, String>),
     TrashSize(u64),
     /// Not final: the import job is waiting for an answer.
     DupQuestion {

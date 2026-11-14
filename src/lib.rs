@@ -15,6 +15,7 @@ pub mod i18n;
 pub mod progress;
 pub mod search;
 pub mod stats;
+pub mod update;
 
 /// Version of the application writing archive metadata.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

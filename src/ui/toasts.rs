@@ -28,6 +28,8 @@ pub struct Toast {
     pub secs: f32,
     pub undo: Option<TrashBatch>,
     pub reveal: Option<PathBuf>,
+    /// Shows an "Update" button that opens Settings.
+    pub open_settings: bool,
 }
 
 impl Toast {
@@ -45,6 +47,7 @@ impl Toast {
             secs,
             undo: None,
             reveal: None,
+            open_settings: false,
         }
     }
 }
@@ -129,6 +132,10 @@ pub fn show(app: &mut PhotoVaultApp, ctx: &egui::Context) {
                                 && ui.button(t!("toast.show")).clicked()
                             {
                                 app.actions.push(Action::Reveal(p.clone()));
+                            }
+                            if toast.open_settings && ui.button(t!("update.open")).clicked() {
+                                app.actions.push(Action::OpenSettings);
+                                dismiss.push(toast.id);
                             }
                             if ui
                                 .add(

@@ -89,6 +89,16 @@ Windows, macOS and Linux as a single binary.
   drop missing entries, accept changed hashes).
 - Export a collection as a `.zip` or as an offline **HTML gallery**.
 
+**Updates**
+- Checks GitHub Releases at startup (at most once every 24 hours) and on
+  demand from Settings. The automatic check can be turned off.
+- When a newer version exists, a toast and the Settings → Updates section
+  offer one-click installation: the macOS `.app` bundle is replaced from the
+  `.dmg`, the Windows installer runs, or the Linux `.AppImage` is swapped in
+  place, and PhotoVault reopens itself. The release page is always available.
+- Copies installed with apt/dnf/pacman are pointed at the release page so the
+  package manager stays in charge.
+
 **Languages, themes and motion**
 - **English and Arabic (العربية)** interface, switchable at any time from the
   welcome screen or Settings. In Arabic the whole layout mirrors: the sidebar

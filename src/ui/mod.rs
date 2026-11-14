@@ -140,7 +140,17 @@ fn top_bar(app: &mut PhotoVaultApp, ui: &mut egui::Ui) {
         }
 
         ui.with_layout(crate::ui::end_layout(), |ui| {
-            if ui.button("⚙").on_hover_text(t!("top.settings")).clicked() {
+            let update_ready = app.update.available.is_some();
+            let mut gear = RichText::new("⚙");
+            if update_ready {
+                gear = gear.color(accent);
+            }
+            let tip = if update_ready {
+                t!("update.title")
+            } else {
+                t!("top.settings")
+            };
+            if ui.button(gear).on_hover_text(tip).clicked() {
                 app.actions.push(Action::OpenSettings);
             }
             let dark = ui.visuals().dark_mode;
