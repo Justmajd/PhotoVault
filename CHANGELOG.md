@@ -3,6 +3,17 @@
 All notable changes to PhotoVault are documented here. The project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-11-14
+
+### Packaging
+- Linux releases now include an `.rpm` built with `cargo-generate-rpm` for
+  Fedora, RHEL and openSUSE (dnf/zypper), and a `.pkg.tar.zst` built from
+  `packaging/arch/PKGBUILD` in an official Arch Linux container for Arch,
+  Manjaro and EndeavourOS (pacman), alongside the existing `.deb` and
+  `.AppImage`.
+- Both new packages declare GTK3 and libxkbcommon as dependencies.
+- README has a per-system install table and package build instructions.
+
 ## [0.1.0] — 2026-11-14
 
 First release.
