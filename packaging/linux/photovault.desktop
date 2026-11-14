@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=PhotoVault
+GenericName=Photo Archive
+Comment=Archive photos into plain, portable folders with notes and backups
+Exec=photovault %F
+Icon=photovault
+Terminal=false
+Categories=Graphics;Photography;
+Keywords=photos;archive;backup;album;
+StartupWMClass=photovault

@@ -1,0 +1,96 @@
+[package]
+name = "photovault"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Archive photos into a plain, portable folder structure with notes, backups and restore."
+license = "MIT"
+readme = "README.md"
+default-run = "photovault"
+
+[lib]
+name = "photovault"
+path = "src/lib.rs"
+
+[[bin]]
+name = "photovault"
+path = "src/main.rs"
+
+[dependencies]
+# GUI
+eframe = "0.37"
+egui_extras = { version = "0.37", features = ["datepicker", "image"] }
+jiff = "0.2"
+
+# Images / metadata
+image = { version = "0.25", default-features = false, features = ["rayon", "jpeg", "png", "gif", "bmp", "webp", "tiff"] }
+kamadak-exif = "0.6"
+
+# Platform integration
+rfd = "0.18"
+opener = { version = "0.9", features = ["reveal"] }
+dirs = "7.0.0"
+
+# Backup
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+sha2 = "0.11"
+hex = "0.4.3"
+
+# Data
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# FS helpers
+walkdir = "2.5.0"
+filetime = "0.2"
+
+# Errors / logging
+anyhow = "1.0"
+thiserror = "2.0"
+log = "0.4"
+env_logger = "0.11"
+unicode-bidi = "0.3.18"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+# Thumbnail decoding is unbearably slow without optimisation, even in debug builds.
+[profile.dev.package.image]
+opt-level = 2
+[profile.dev.package.zune-jpeg]
+opt-level = 2
+[profile.dev.package.png]
+opt-level = 2
+[profile.dev.package.sha2]
+opt-level = 2
+[profile.dev.package.zlib-rs]
+opt-level = 2
+
+[package.metadata.packager]
+product-name = "PhotoVault"
+identifier = "app.photovault.desktop"
+category = "Photography"
+description = "Archive photos into a plain, portable folder structure."
+long-description = "PhotoVault archives photos into dated collections with titles and notes. The archive is a plain folder of photos, JSON and Markdown, and backups are standard .zip files."
+authors = ["PhotoVault contributors"]
+publisher = "PhotoVault"
+copyright = "Copyright © 2026 PhotoVault contributors"
+icons = ["assets/icon.png", "assets/icon.ico", "assets/icon.icns"]
+out-dir = "dist"
+binaries = [{ path = "photovault", main = true }]
+
+[package.metadata.packager.deb]
+depends = ["libgtk-3-0", "libxkbcommon0"]
+
+[package.metadata.packager.macos]
+minimum-system-version = "11.0"
+
+[package.metadata.packager.nsis]
+installer-icon = "assets/icon.ico"
