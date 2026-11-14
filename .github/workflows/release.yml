@@ -92,6 +92,26 @@ jobs:
       - name: Package
         run: cargo packager --release --formats ${{ matrix.formats }} --out-dir dist
 
+      - name: RPM package for dnf (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo install cargo-generate-rpm --locked
+          cargo generate-rpm --output dist/
+
+      - name: Arch package for pacman (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          sed -i "s/^pkgver=.*/pkgver=${version}/" packaging/arch/PKGBUILD
+          docker run --rm -v "$PWD":/w archlinux:base-devel bash -c '
+            useradd -m builder &&
+            chown -R builder /w/packaging/arch &&
+            chmod -R a+rX /w &&
+            cd /w/packaging/arch &&
+            su builder -c "PKGDEST=/w/packaging/arch makepkg -f --nodeps"'
+          sudo cp packaging/arch/*.pkg.tar.zst dist/
+          ls -la dist
+
       - name: Portable zip (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -106,6 +126,8 @@ jobs:
           name: photovault-${{ matrix.name }}
           path: |
             dist/*.deb
+            dist/*.rpm
+            dist/*.pkg.tar.zst
             dist/*.AppImage
             dist/*.dmg
             dist/*.msi

@@ -105,6 +105,23 @@ Windows, macOS and Linux as a single binary.
 **Keyboard:** `Ctrl/⌘+N` new collection · `Ctrl/⌘+I` import · `Ctrl/⌘+F`
 search · `Ctrl/⌘+B` backup · `Del` remove selected · `?` shortcut list.
 
+## Installing
+
+Download the file for your system from the
+[latest release](https://github.com/Justmajd/PhotoVault/releases/latest):
+
+| System | File | Install |
+|---|---|---|
+| Windows | `*-setup.exe` or `.msi` (or the portable `.zip`) | run the installer |
+| macOS | `.dmg` | open it and drag PhotoVault to Applications |
+| Debian, Ubuntu, Mint (apt) | `.deb` | `sudo apt install ./PhotoVault_*.deb` |
+| Fedora, RHEL, openSUSE (dnf/zypper) | `.rpm` | `sudo dnf install ./photovault-*.rpm` |
+| Arch, Manjaro, EndeavourOS (pacman) | `.pkg.tar.zst` | `sudo pacman -U ./photovault-*.pkg.tar.zst` |
+| Any Linux | `.AppImage` | `chmod +x PhotoVault*.AppImage` and run it |
+
+The macOS build is not notarized yet: the first time, right-click the app
+and choose **Open**.
+
 ## Recovering your photos without PhotoVault
 
 You never need PhotoVault to get your photos back.
@@ -231,7 +248,7 @@ cargo build --release && cargo packager --release --formats app,dmg --out-dir di
 |---|---|---|
 | macOS | `.app`, `.dmg` | `--formats app,dmg` (CI builds a universal binary with `lipo`) |
 | Windows | NSIS `.exe`, `.msi`, portable `.zip` | `--formats nsis,wix` |
-| Linux | `.deb`, `.AppImage` | `--formats deb,appimage` |
+| Linux | `.deb` (apt), `.rpm` (dnf), `.pkg.tar.zst` (pacman), `.AppImage` | `--formats deb,appimage`, plus `cargo generate-rpm` and `makepkg` in `packaging/arch/` |
 
 The GitHub Actions workflow [`.github/workflows/release.yml`](.github/workflows/release.yml)
 tests on all three OSes, packages each one and, on a `v*` tag, publishes a

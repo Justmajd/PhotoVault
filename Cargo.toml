@@ -94,3 +94,19 @@ minimum-system-version = "11.0"
 
 [package.metadata.packager.nsis]
 installer-icon = "assets/icon.ico"
+
+# RPM package for dnf (Fedora, RHEL, openSUSE): `cargo generate-rpm`.
+[package.metadata.generate-rpm]
+name = "photovault"
+summary = "Archive photos into plain, portable folders with notes and backups"
+license = "MIT"
+assets = [
+    { source = "target/release/photovault", dest = "/usr/bin/photovault", mode = "755" },
+    { source = "packaging/linux/photovault.desktop", dest = "/usr/share/applications/photovault.desktop", mode = "644" },
+    { source = "assets/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/photovault.png", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/licenses/photovault/LICENSE", mode = "644", doc = true },
+]
+
+[package.metadata.generate-rpm.requires]
+gtk3 = "*"
+libxkbcommon = "*"

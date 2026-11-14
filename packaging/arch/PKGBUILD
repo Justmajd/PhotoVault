@@ -1,0 +1,20 @@
+# Maintainer: PhotoVault contributors
+# Packages the release binary built by `cargo build --release` in the repo
+# root. Built in CI with: makepkg -f --nodeps (see .github/workflows/release.yml)
+pkgname=photovault
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Archive photos into plain, portable folders with notes and verified backups"
+arch=('x86_64')
+url="https://github.com/Justmajd/PhotoVault"
+license=('MIT')
+depends=('gtk3' 'libxkbcommon' 'hicolor-icon-theme')
+options=('!strip' '!debug')
+
+package() {
+    local root="$startdir/../.."
+    install -Dm755 "$root/target/release/photovault" "$pkgdir/usr/bin/photovault"
+    install -Dm644 "$root/packaging/linux/photovault.desktop" "$pkgdir/usr/share/applications/photovault.desktop"
+    install -Dm644 "$root/assets/icon-256.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/photovault.png"
+    install -Dm644 "$root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

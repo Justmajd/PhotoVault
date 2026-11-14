@@ -57,7 +57,8 @@ First release.
 ### Tooling
 - Unit and integration tests, clippy `-D warnings`, rustfmt.
 - cargo-packager configuration and a GitHub Actions workflow producing
-  `.dmg`, `.msi`/NSIS, portable `.zip`, `.deb` and `.AppImage`.
+  `.dmg`, `.msi`/NSIS, portable `.zip`, `.deb` (apt), `.rpm` (dnf),
+  `.pkg.tar.zst` (pacman) and `.AppImage`.
 
 ### Known limitations
 - While *editing*, a line mixing Arabic with digits or Latin text can show
